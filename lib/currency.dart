@@ -1,5 +1,7 @@
+import 'package:currency/resultcard.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'currency_controller.dart';
@@ -19,63 +21,108 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
   Widget build(BuildContext context) {
     var h = MediaQuery.of(context).size.height;
     var w = MediaQuery.of(context).size.width;
-    // String formattedDate = DateFormat('yMMMMd')
-    //     .format(DateTime.parse(currencyController.currentdate.value));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'USD to PKR Converter',
-          style: TextStyle(color: Colors.white , fontSize: 18),
+          'Currency to PKR Converter',
+          style: TextStyle(color: Colors.white, fontSize: 18),
         ),
         backgroundColor: Colors.teal,
         centerTitle: true,
       ),
       body: Padding(
-        padding:  EdgeInsets.symmetric(horizontal: w * 0.04),
+        padding: EdgeInsets.symmetric(horizontal: w * 0.04),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(height: h * 0.01),
-              Text(
-                'Currency Converter',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.teal[800],
-                ),
+              SizedBox(height: h * 0.02),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Text(
+                    'Select Currency',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.teal[800],
+                    ),
+                  ),
+
+                  // Dropdown for selecting currency
+                  Obx(() => SizedBox(
+                        width: w * 0.35,
+                        height:  h * 0.07,
+                        child: DropdownButton<String>(
+                          alignment: Alignment.center,
+                          dropdownColor: Colors.white,
+                          iconEnabledColor: Colors.teal,
+                          iconSize: 28,
+                          style: TextStyle(color: Colors.black, fontSize: 16),
+                          elevation: 16,
+                          value: currencyController.selectedCurrency.value,
+                          items: currencyController.currencyData.keys
+                              .map((String currency) {
+                            return DropdownMenuItem<String>(
+                              value: currency,
+                              child: Row(
+                                children: [
+                                  SvgPicture.asset(
+                                    fit: BoxFit.fitWidth,
+                                    currencyController
+                                        .currencyData[currency]!['flag']!,
+                                    width: w * 0.04, // Adjust size as needed
+                                    height: h * 0.04, // Adjust size as needed
+                                  ),
+                                  SizedBox(
+                                      width: w *
+                                          0.03), // Space between the flag and the text
+                                  Text(currency),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (newValue) {
+                            currencyController.selectedCurrency.value =
+                                newValue!;
+                          },
+                        ),
+                      )),
+                ],
               ),
-              SizedBox(height: h * 0.005),
-              // Display the Dollar rate with the date
+
               SizedBox(height: h * 0.02),
 
-              TextFormField(
-                controller: currencyController.usdController,
-                keyboardType: TextInputType.number,
-                cursorColor: Colors.teal,
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(
-                      r'^\d*\.?\d*')), // Only allow numbers and one decimal point
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Enter amount in USD',
-                  labelStyle: TextStyle(color: Colors.black, fontSize: 16),
-                  border: OutlineInputBorder(),
-                  prefixIcon:
-                      Icon(Icons.attach_money, color: Colors.teal, size: 25),
-                  focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.teal, width: 2.0),
-                      borderRadius: BorderRadius.all(Radius.circular(20))),
-                  enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.teal, width: 1.5),
-                      borderRadius: BorderRadius.all(Radius.circular(20))),
-                ),
-                onChanged: (value) {
-                  currencyController.usdAmount.value =
-                      double.tryParse(value) ?? 0.0;
-                },
-              ),
+              // TextFormField for amount entry
+              Obx(() => TextFormField(
+                    controller: currencyController.amountController,
+                    keyboardType: TextInputType.number,
+                    cursorColor: Colors.teal,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText:
+                          'Enter amount in ${currencyController.selectedCurrency.value}',
+                      labelStyle: TextStyle(color: Colors.black, fontSize: 16),
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money,
+                          color: Colors.teal, size: 25),
+                      focusedBorder: OutlineInputBorder(
+                          borderSide:
+                              BorderSide(color: Colors.teal, width: 2.0),
+                          borderRadius: BorderRadius.all(Radius.circular(20))),
+                      enabledBorder: OutlineInputBorder(
+                          borderSide:
+                              BorderSide(color: Colors.teal, width: 1.5),
+                          borderRadius: BorderRadius.all(Radius.circular(20))),
+                    ),
+                    onChanged: (value) {
+                      currencyController.usdAmount.value =
+                          double.tryParse(value) ?? 0.0;
+                    },
+                  )),
 
               SizedBox(height: h * 0.02),
               Obx(() => currencyController.isLoading.value
@@ -94,8 +141,8 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                               horizontal: 24, vertical: 12),
                         ),
                         onPressed: () {
-                          // Check if the input is empty
-                          if (currencyController.usdController.text.isEmpty) {
+                          if (currencyController
+                              .amountController.value.text.isEmpty) {
                             Get.snackbar("Alert", "Kindly Enter Amount");
                           } else {
                             currencyController.convertCurrency(context);
@@ -103,10 +150,12 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                         },
                         child: const Text(
                           'Convert to PKR',
-                          style: TextStyle(fontSize: 16 , fontWeight: FontWeight.w300),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w300),
                         ),
                       ),
                     )),
+
               SizedBox(height: h * 0.02),
               Obx(() => currencyController.pkrValue.value > 0
                   ? Column(
@@ -118,14 +167,15 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                         ),
                         SizedBox(height: h * 0.01),
                         ResultCard(
-                          title: '1 USD to PKR Value',
-                          value: currencyController.usdToPkrRate
+                          title:
+                              '1 ${currencyController.selectedCurrency.value} to PKR Value',
+                          value: currencyController.ToPkrRate.value
                               .toStringAsFixed(2),
-                          icon: Icons.attach_money,
+                          icon: Icons.mode_standby_sharp,
                         ),
                         SizedBox(height: h * 0.01),
                         ResultCard(
-                          title: 'Entered USD',
+                          title: 'Entered Amount',
                           value: currencyController.usdAmount.value
                               .toStringAsFixed(2),
                           icon: Icons.conveyor_belt,
@@ -144,62 +194,18 @@ class _CurrencyConverterScreenState extends State<CurrencyConverterScreen> {
                               .toStringAsFixed(2),
                           icon: Icons.percent,
                         ),
+                        SizedBox(height: h * 0.01),
+                        ResultCard(
+                          title: '20% of PKR',
+                          value: currencyController.pkrTwentyPercent.value
+                              .toStringAsFixed(2),
+                          icon: Icons.percent,
+                        ),
                       ],
                     )
                   : const SizedBox.shrink()),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class ResultCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  const ResultCard({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    var w = MediaQuery.of(context).size.width;
-    var h = MediaQuery.of(context).size.height;
-    return Card(
-      color: Colors.teal[50],
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.teal, size: 22),
-            SizedBox(width: w * 0.05),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 16, color: Colors.teal[800]),
-                ),
-                SizedBox(height: h * 0.005),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );

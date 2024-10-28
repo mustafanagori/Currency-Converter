@@ -7,60 +7,96 @@ import 'dart:convert';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 
 class CurrencyController extends GetxController {
-  final TextEditingController usdController = TextEditingController();
-  var usdAmount = 0.0.obs;
-  var pkrValue = 0.0.obs;
-  var pkrEightyPercent = 0.0.obs;
-  var isLoading = false.obs;
-  var usdToPkrRate = 0.0;
+  final TextEditingController amountController = TextEditingController();
+  RxDouble usdAmount = 0.0.obs;
+  RxDouble pkrValue = 0.0.obs;
+  RxDouble pkrEightyPercent = 0.0.obs;
+  RxDouble pkrTwentyPercent = 0.0.obs;
+  RxDouble ToPkrRate = 0.0.obs;
+  RxBool isLoading = false.obs;
   RxString currentdate = ''.obs;
+  RxString selectedCurrency = 'USD'.obs;
+
+  final Map<String, Map<String, String>> currencyData = {
+    'USD': {
+      'url': 'https://api.exchangerate-api.com/v4/latest/USD',
+      'flag': 'assets/usd.svg', // Local flag asset for USD
+    },
+    'EUR': {
+      'url': 'https://api.exchangerate-api.com/v4/latest/EUR',
+      'flag': 'assets/euro.svg', // Local flag asset for EUR
+    },
+    'AUD': {
+      'url': 'https://api.exchangerate-api.com/v4/latest/AUD',
+      'flag': 'assets/aus.svg', // Local flag asset for AUD
+    },
+    'GBP': {
+      'url': 'https://api.exchangerate-api.com/v4/latest/GBP',
+      'flag': 'assets/gbp.svg', // Local flag asset for GBP
+    },
+    'CAD': {
+      'url': 'https://api.exchangerate-api.com/v4/latest/CAD',
+      'flag': 'assets/can.svg', // Local flag asset for CAD
+    },
+  };
 
   Future<void> convertCurrency(BuildContext context) async {
-     FocusScope.of(context).unfocus();
-    bool isConnected = await InternetConnectionChecker().hasConnection;
-    if (!isConnected) {
-      InternetConnectionDialog.show();
-      isLoading.value = false;
+    print(amountController.value.text.runtimeType);
+
+    double? parsedValue = double.tryParse(amountController.value.text);
+    if (parsedValue != null) {
+      RxDouble convertFieldValue =
+          parsedValue.obs; // Make it an observable double
+      print(convertFieldValue.value.runtimeType); // This should now be 'double'
+    } else {
+      print("The text is not a valid double");
+    }
+
+    FocusScope.of(context).unfocus();
+    if (usdAmount.value <= 0) {
+      Get.snackbar("Invalid Input", "Enter a valid amount");
       return;
     }
 
-    if (usdAmount.value <= 0) return; // Prevent conversion for invalid input
+    bool isConnected = await InternetConnectionChecker().hasConnection;
+    if (!isConnected) {
+      InternetConnectionDialog.show();
+      return;
+    }
+
     isLoading.value = true;
+    String apiUrl = currencyData[selectedCurrency.value]?['url'] ?? '';
 
     try {
-      final response = await http
-          .get(Uri.parse('https://api.exchangerate-api.com/v4/latest/USD'))
-          .timeout(const Duration(seconds: 8));
+      final response =
+          await http.get(Uri.parse(apiUrl)).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        usdToPkrRate = data['rates']['PKR'];
+        ToPkrRate.value = (data['rates']['PKR'] as num).toDouble();
         currentdate.value = data['date'];
-
-        // Convert to PKR and calculate 80% of the value
-        pkrValue.value = usdAmount.value * usdToPkrRate;
+        pkrValue.value = parsedValue! * ToPkrRate.value;
         pkrEightyPercent.value = pkrValue.value * 0.8;
+        pkrTwentyPercent.value = pkrValue.value * 0.2;
       } else {
-        Get.snackbar("Error", "Failed to fetch exchange rate");
+        Get.snackbar("Error", "Failed to fetch exchange rate. Try again.");
       }
     } catch (e) {
       if (e is TimeoutException) {
         InternetConnectionDialog.show();
       } else {
-        Get.snackbar("Error", e.toString());
+        Get.snackbar("Error", "Something went wrong: ${e.toString()}");
       }
     } finally {
-      // clear();
       isLoading.value = false;
-      usdController.clear();
+      amountController.clear();
     }
   }
 
-  void clear() {
-    usdController.clear();
-    usdAmount.value = 0.0;
+  void resetConversion() {
     pkrValue.value = 0.0;
     pkrEightyPercent.value = 0.0;
-    usdToPkrRate = 0.0;
+    ToPkrRate.value = 0.0;
+    currentdate.value = '';
   }
 }
